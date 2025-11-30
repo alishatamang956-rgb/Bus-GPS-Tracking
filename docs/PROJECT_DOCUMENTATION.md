@@ -32,6 +32,7 @@ The **Bus GPS Tracking System** is a real-time geolocation tracking application 
 - **Fullscreen map mode** for better visibility
 - **Historical position table** with sortable data
 - **Polling-based live updates** (10s interval)
+- **Minute ad/video overlay** that plays a short clip over the map periodically (optional, configurable)
 
 ### Technology Stack
 
@@ -279,8 +280,8 @@ The application displays:
 
 #### ETA Calculation
 
-- **Route-based ETA** (green route): Uses OSRM to calculate driving time along roads; includes a 15% safety buffer
-- **Straight-line ETA** (red dashed route): Fallback if OSRM fails; calculates based on recent bus speed with a 30% safety buffer
+-- **Route-based ETA** (green route): Uses OSRM to calculate driving time along roads; includes a 25% safety buffer (configurable)
+- **Straight-line ETA** (red dashed route): Fallback if OSRM fails; calculates based on recent bus speed with a 50% safety buffer (configurable)
 
 The ETA shows:
 - Duration (e.g., "15m 30s")
@@ -291,6 +292,35 @@ The ETA shows:
 1. Click "Full screen map" button to expand the map to fill the browser window
 2. A "Close" button appears in the top-right corner
 3. Press **Escape** key or click "Close" to exit fullscreen
+
+### 6. Minute Video / Ad Overlay
+
+- The frontend optionally displays a short overlay video that plays periodically (default every 30s) over the map area.
+- It is configurable in `frontend/src/App.jsx` by setting the `videoOverlayConfig` prop passed to `MapView`.
+  - `videoSrc`: URL or local path to the video file (e.g., `/videos/texas.mp4` or remote URL)
+  - `intervalMs`: time between playbacks in milliseconds (default 30000)
+  - `showDurationMs`: how long the video is visible in milliseconds (default 15000)
+  - `muted`: boolean, if false the app will try to play with sound; if the browser blocks autoplay with sound it will fall back to muted playback and show an "Enable sound" button.
+  - `fullscreenOverlay`: boolean, whether the overlay should fill the map container area (default true)
+
+Usage:
+1. Configure `videoOverlayConfig` in `App.jsx` (or pass a different config to `MapView`):
+```js
+<MapView
+  ...
+  videoOverlayConfig={{
+    videoSrc: 'https://sijankadel54-wq.github.io/Ecobus-stop/media/texas.mp4',
+    intervalMs: 30000,
+    showDurationMs: 15000,
+    muted: false,
+    fullscreenOverlay: true
+  }}
+/>
+```
+
+2. Behavior: The overlay will display over the map for the configured duration. It includes a Close button (snooze) and an "Enable sound" button if autoplay with sound is blocked; clicking enable will request user gesture playback with sound.
+
+3. Note: Autoplay with sound is blocked on many browsers until the user interacts. The fallback behavior shows video muted and the enable button.
 
 ### 4. Viewing Historical Data
 
@@ -493,6 +523,23 @@ App
 - `haversineMeters(lat1, lon1, lat2, lon2)`: Compute great-circle distance
 - `computeEtaText(lastPosition, destLatLng)`: Calculate straight-line ETA
 - `formatDuration(seconds)`: Format duration to "Xh Ym" or "Xm Ys"
+
+#### File: `frontend/src/MinuteVideo.jsx`
+
+**Responsibilities:**
+- Display a short overlay video over the map area on a schedule; default is 30s interval and 15s display duration
+- Support unmuted playback where possible, fallback to muted playback if the browser blocks autoplay with sound
+- Show a Close button that snoozes the ad for the next interval and an "Enable sound" button when the autoplay is blocked
+
+**Config (from `App.jsx` via `MapView.videoOverlayConfig`):**
+- `videoSrc` (required): string URL or path to the video
+- `intervalMs` (optional): interval between plays in milliseconds (default 30000)
+- `showDurationMs` (optional): display duration in milliseconds (default 15000)
+- `muted` (optional): boolean; `false` attempts unmuted playback, `true` forces muted playback
+- `fullscreenOverlay` (optional): boolean; if `true` overlay fills the map container
+
+**Usage:** The `MapView` component accepts a `videoOverlayConfig` object (see `frontend/src/App.jsx`) and renders `MinuteVideo` into the map wrapper. The overlay is removed from the DOM when not visible so it does not block map interactions.
+
 
 #### File: `frontend/vite.config.js`
 
@@ -708,6 +755,12 @@ VALUES ('esp32-01', '2025-11-29T12:00:00Z', 37.4219983, -122.084);
 
 INSERT INTO readings (device_id, timestamp, latitude, longitude) 
 VALUES ('esp32-02', '2025-11-29T12:01:00Z', 37.4220500, -122.0850);
+-- Mahalakshmisthan (Kathmandu) sample readings (inserted by CSV/import script)
+INSERT INTO readings (device_id, timestamp, latitude, longitude) VALUES ('esp32-nepal-01', '2025-11-29T08:00:00Z', 27.712400, 85.323900);
+INSERT INTO readings (device_id, timestamp, latitude, longitude) VALUES ('esp32-nepal-01', '2025-11-29T08:01:00Z', 27.712500, 85.323950);
+INSERT INTO readings (device_id, timestamp, latitude, longitude) VALUES ('esp32-nepal-01', '2025-11-29T08:02:00Z', 27.712600, 85.324000);
+INSERT INTO readings (device_id, timestamp, latitude, longitude) VALUES ('esp32-nepal-01', '2025-11-29T08:03:00Z', 27.712700, 85.324050);
+INSERT INTO readings (device_id, timestamp, latitude, longitude) VALUES ('esp32-nepal-01', '2025-11-29T08:04:00Z', 27.712800, 85.324100);
 ```
 
 #### Index
@@ -881,6 +934,8 @@ VALUES ('esp32-02', '2025-11-29T12:01:00Z', 37.4220500, -122.0850);
 - **`backend/README.md`** – Backend setup and run instructions
 - **`frontend/README.md`** – Frontend setup and build instructions
 - **`db/schema.sql`** – Database schema creation script
+ - **`backend/scripts/readings_mahalaxmi.csv`** – CSV file with Mahalakshmisthan sample readings
+ - **`backend/scripts/import_csv.js`** – Node.js script for importing CSV data into SQLite DB
 
 ### External APIs & Libraries
 
