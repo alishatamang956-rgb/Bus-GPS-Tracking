@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import MinuteVideo from './MinuteVideo';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -14,7 +15,10 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-export default function MapView({ positions, destination, onMapClick, fullScreen, onExitFullScreen }) {
+export default function MapView({ positions, destination, onMapClick, fullScreen, onExitFullScreen, videoOverlayConfig = null }) {
+  // ETA tuning factors — increase these to make ETA more conservative
+  const ROUTE_SAFETY_FACTOR = 1.25; // was 1.15
+  const FALLBACK_SAFETY_FACTOR = 1.5; // was 1.3
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const destRef = useRef(null);
@@ -76,7 +80,7 @@ export default function MapView({ positions, destination, onMapClick, fullScreen
     const chosenSpeed = Math.max(0.1, Math.min(weightedAvg, Math.max(medianSpeed, weightedAvg)));
 
     // apply safety multiplier to avoid underestimation (adjustable)
-    const SAFETY_FACTOR = 1.3;
+    const SAFETY_FACTOR = FALLBACK_SAFETY_FACTOR;
 
     const distToDest = haversineMeters(lastPosition.latitude, lastPosition.longitude, destLatLng.lat, destLatLng.lng);
     const seconds = (distToDest / chosenSpeed) * SAFETY_FACTOR;
@@ -152,7 +156,7 @@ export default function MapView({ positions, destination, onMapClick, fullScreen
                 routeRef.current = L.polyline(coordsGeo, { color: 'green', weight: 4 }).addTo(map);
                 if (onMapClick) routeRef.current.on('click', (e) => onMapClick(e.latlng));
                 // Apply a safety factor to OSRM duration to be conservative
-                const ROUTE_SAFETY = 1.15; // 15% buffer for traffic/uncertainty
+                const ROUTE_SAFETY = ROUTE_SAFETY_FACTOR; // 25% buffer for traffic/uncertainty (tunable)
                 const adjustedDuration = r.duration * ROUTE_SAFETY;
                 const arriveAt = new Date(Date.parse(last.timestamp) + adjustedDuration * 1000);
                 destRef.current.bindPopup(`<div><strong>Destination</strong><br/>${destination.lat.toFixed(6)}, ${destination.lng.toFixed(6)}<br/>ETA (route): ${formatDuration(adjustedDuration)} (~ ${arriveAt.toISOString()})</div>`).openPopup();
@@ -177,6 +181,9 @@ export default function MapView({ positions, destination, onMapClick, fullScreen
   // choose style depending on fullscreen
   const style = fullScreen ? { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999 } : { height: 480, width: '100%' };
 
+  // wrapper style used to position overlay relative to the map
+  const wrapperStyle = fullScreen ? { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9998 } : { position: 'relative', width: '100%', height: 480 };
+
   return (
     <div>
       {fullScreen && (
@@ -184,7 +191,20 @@ export default function MapView({ positions, destination, onMapClick, fullScreen
           <button onClick={() => { if (onExitFullScreen) onExitFullScreen(); }}>Close</button>
         </div>
       )}
-      <div id="map" style={style} />
+      <div style={wrapperStyle}>
+        <div id="map" style={{ width: '100%', height: '100%' }} />
+        {videoOverlayConfig && (
+          <MinuteVideo
+            videoSrc={videoOverlayConfig.videoSrc}
+            intervalMs={videoOverlayConfig.intervalMs}
+            showDurationMs={videoOverlayConfig.showDurationMs}
+            alignToMinute={videoOverlayConfig.alignToMinute}
+            muted={videoOverlayConfig.muted}
+            fullscreenOverlay={videoOverlayConfig.fullscreenOverlay ? videoOverlayConfig.fullscreenOverlay : false}
+            containerRelative={true}
+          />
+        )}
+      </div>
     </div>
   );
 }

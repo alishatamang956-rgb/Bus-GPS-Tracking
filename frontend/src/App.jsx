@@ -100,9 +100,24 @@ export default function App() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 6 }}>
             <button onClick={() => setFullScreen(true)}>Full screen map</button>
           </div>
-          <MapView positions={positions} destination={destination} onMapClick={handleMapClick} fullScreen={fullScreen} onExitFullScreen={() => setFullScreen(false)} />
+          <MapView
+            positions={positions}
+            destination={destination}
+            onMapClick={handleMapClick}
+            fullScreen={fullScreen}
+            onExitFullScreen={() => setFullScreen(false)}
+            videoOverlayConfig={{
+              videoSrc: 'https://sijankadel54-wq.github.io/Ecobus-stop/media/texas.mp4',
+              intervalMs: 30000, // decreased interval to 30s
+              showDurationMs: 15000,
+              alignToMinute: true,
+              muted: false, // do not mute — allow sound
+              fullscreenOverlay: true, // larger overlay (cover full map area)
+            }}
+          />
         </div>
       </div>
+      {/* The MinuteVideo overlay is now rendered on the map only via MapView's `videoOverlayConfig` prop. */}
     </div>
   );
 }
